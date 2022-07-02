@@ -15,7 +15,7 @@ import java.util.Scanner;
 public class CarRentalCommanLineParser {
     private final Scanner scanner;
     private final CarDao dao;
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyy-MM-dd");
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public CarRentalCommanLineParser(Scanner scanner, CarDao dao) {
         this.scanner = scanner;
@@ -48,7 +48,7 @@ public class CarRentalCommanLineParser {
             if (szukanySamochod.isPresent()) {
                 Car wybranySamochod = szukanySamochod.get();
 
-                System.out.println("Jaki parametr chcesz wyedytować");
+                System.out.println("Jaki parametr chcesz wyedytować: nazwa, marka, dataProdukcji, pojemnosc");
                 String output = scanner.next();
 
                 switch (output) {
@@ -136,13 +136,17 @@ public class CarRentalCommanLineParser {
                     dataProdukcji = LocalDate.parse(dataProdukcjiString, FORMATTER);
 
                     LocalDate today = LocalDate.now();
-                    if (dataProdukcji.isBefore(today)) {
-                        throw new IllegalArgumentException("Kłamiesz - to nie może być data produkcji");
+                    if (dataProdukcji.isAfter(today)) {
+                        throw new IllegalArgumentException("Kłamiesz - to nie może być data praodukcji");
                     }
 
-                } catch (IllegalArgumentException | DateTimeException iae) {
+                } catch (DateTimeException dt) {
                     dataProdukcji = null;
-                    System.err.println("Wskazana data produkcji jest nieprawidłowa. Wprowadź datę w formacie: yyy-MM-dd");
+                    System.err.println("Wskazana data produkcji jest nieprawidłowa. Wprowadź datę w formacie: yyyy-MM-dd");
+                }catch (IllegalArgumentException iae) {
+                    dataProdukcji = null;
+                    System.err.println("Kłamiesz - to nie może być data produkcji");
+                    System.out.println("Podaj datę produkcji");
                 }
             } while (dataProdukcji == null);
             return dataProdukcji;
