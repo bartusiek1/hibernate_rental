@@ -22,14 +22,18 @@ import java.time.LocalDate;
 public class Car {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Enumerated(EnumType.STRING)
 
+    private Long id;
     private String nazwa;
     private String marka;
     private LocalDate dataProdukcji;
+
+    @Enumerated(EnumType.STRING)
     private TypNadwozia nadwozie;
     private int miejscaSiedzace;
     private Double pojemnoscSilnika;
+
+    @Enumerated(EnumType.STRING)
     private TypSkrzyni skrzynia;
 }
 

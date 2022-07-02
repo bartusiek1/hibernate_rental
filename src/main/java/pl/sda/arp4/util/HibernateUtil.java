@@ -1,4 +1,4 @@
-package pl.sda.arp4.Util;
+package pl.sda.arp4.util;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.Metadata;
