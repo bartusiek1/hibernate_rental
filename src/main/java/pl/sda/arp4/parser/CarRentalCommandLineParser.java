@@ -1,31 +1,36 @@
 package pl.sda.arp4.parser;
 
-import pl.sda.arp4.dao.CarDao;
+import pl.sda.arp4.dao.GenericDao;
 import pl.sda.arp4.model.Car;
+import pl.sda.arp4.model.CarRental;
 import pl.sda.arp4.model.TypNadwozia;
 import pl.sda.arp4.model.TypSkrzyni;
 
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 
-public class CarRentalCommanLineParser {
+public class CarRentalCommandLineParser {
     private final Scanner scanner;
-    private final CarDao dao;
+    private final GenericDao<Car> daoCar;
+    private final GenericDao<CarRental> daoCarRental;
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    public CarRentalCommanLineParser(Scanner scanner, CarDao dao) {
+    public CarRentalCommandLineParser(Scanner scanner, GenericDao<Car> daoCar, GenericDao<CarRental> daoCarRental) {
         this.scanner = scanner;
-        this.dao = dao;
+        this.daoCar = daoCar;
+        this.daoCarRental = daoCarRental;
     }
+
 
     public void obslugaKomend() {
         String command = null;
         do {
-            System.out.println("Wybierz jedną z opcji: Dodaj/Usun/Lista/Edytuj lub Quit");
+            System.out.println("Wybierz jedną z opcji: Dodaj/Usun/Lista/Edytuj/DodajWynajem/ZwrocWynajem/Sprawdz lub Quit");
             command = scanner.next();
 
             if (command.equalsIgnoreCase("Dodaj")) {
@@ -36,14 +41,108 @@ public class CarRentalCommanLineParser {
                 obsluzLista();
             } else if (command.equalsIgnoreCase("Edytuj")) {
                 obsluzEdytuj();
+            } else if (command.equalsIgnoreCase("DodajWynajem")) {
+                obsluzDodajWynajem();
+            }else if (command.equalsIgnoreCase("ZwrocWynajem")) {
+                obsluzZwrocWynajem();
+            } else if (command.equalsIgnoreCase("Sprawdz")) {
+                obsluzSprawdz();
             }
         } while (!command.equalsIgnoreCase("Quit"));
     }
 
-        private void obsluzEdytuj () {
+    private void obsluzSprawdz() {
+        System.out.println("Podaj id samochodu");
+        Long podaneId = scanner.nextLong();
+        Optional<Car> szukanySamochod = daoCar.znajdzPoId(podaneId, Car.class);
+
+        if (szukanySamochod.isPresent()) {
+            Car wybranySamochod = szukanySamochod.get();
+
+            if (sprawdzCzySamochodJestDostepny(wybranySamochod)) {
+                System.out.println("Tak, jest dostępny");
+            } else {
+                System.out.println("Nie, nie jest dostępny");
+            }
+        } else {
+            System.out.println("Samochód nie został znaleziony");
+        }
+    }
+
+    private boolean sprawdzCzySamochodJestDostepny (Car samochod) {
+        Optional<CarRental> optionalCarRental = znajdzAktywnyWynajem(samochod);
+        return !optionalCarRental.isPresent();
+    }
+
+    private void obsluzZwrocWynajem() {
+        System.out.println("Podaj id samochodu");
+        Long podaneId = scanner.nextLong();
+        Optional<Car> szukanySamochod = daoCar.znajdzPoId(podaneId, Car.class);
+
+        if (szukanySamochod.isPresent()) {
+            Car wybranySamochod = szukanySamochod.get();
+
+            Optional<CarRental> optionalCarRental = znajdzAktywnyWynajem(wybranySamochod);
+            if (optionalCarRental.isPresent()) {
+                CarRental carRental = optionalCarRental.get();
+
+                // ustaw zakończenie najmu na obecną datę i godzinę
+                carRental.setReturnDateTime(LocalDateTime.now());
+                daoCarRental.aktualizuj(carRental);
+            } else {
+                System.out.println("Samochód nie ma aktywnego wynajmu");
+            }
+        } else {
+            System.out.println("Samochód nie został znaleziony");
+        }
+    }
+
+    private Optional<CarRental> znajdzAktywnyWynajem (Car samochod) {
+        // jesli nie znalezliśmy żadnych wynajmów na liście, to znaczy że nie znajdziemy aktywnego najmu
+        if (samochod.getCarRentals().isEmpty()) {
+            return Optional.empty();
+        }
+
+        for (CarRental carRental : samochod.getCarRentals()) {
+            if (carRental.getReturnDateTime() == null) {   // znajdź aktywny wynajem, bo samochod nie został zwrocony
+                return Optional.of(carRental);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private void obsluzDodajWynajem() {
+        System.out.println("Podaj id samochodu");
+        Long podaneId = scanner.nextLong();
+        Optional<Car> szukanySamochod = daoCar.znajdzPoId(podaneId, Car.class);
+
+        if (szukanySamochod.isPresent()) {
+            Car wybranySamochod = szukanySamochod.get();
+
+            if (sprawdzCzySamochodJestDostepny(wybranySamochod)) {
+
+                System.out.println("Podaj imie");
+                String imie = scanner.next();
+
+                System.out.println("Podaj nazwisko");
+                String nazwisko = scanner.next();
+
+                LocalDateTime dataCzasWynajmu = LocalDateTime.now();
+                System.out.println("Data i godzina wynajmu: " + dataCzasWynajmu);
+
+                CarRental carRental = new CarRental(imie, nazwisko, dataCzasWynajmu, wybranySamochod);
+                daoCarRental.dodaj(carRental);
+
+            } else {
+                System.out.println("Samochód nie został znaleziony");
+            }
+        }
+    }
+
+    private void obsluzEdytuj () {
             System.out.println("Podaj id samochodu");
             Long podaneId = scanner.nextLong();
-            Optional<Car> szukanySamochod = dao.zwrocSamochod(podaneId);
+            Optional<Car> szukanySamochod = daoCar.znajdzPoId(podaneId,Car.class);
 
             if (szukanySamochod.isPresent()) {
                 Car wybranySamochod = szukanySamochod.get();
@@ -74,7 +173,7 @@ public class CarRentalCommanLineParser {
                     default:
                         System.out.println("Wskazano nieistniejącą opcję");
                 }
-                dao.updateSamochod(wybranySamochod);
+                daoCar.aktualizuj(wybranySamochod);
                 System.out.println("Samochód został zaktualizowany");
             } else {
                 System.out.println("Nie odnaleziono wskazanego samochodu");
@@ -82,7 +181,7 @@ public class CarRentalCommanLineParser {
         }
 
         private void obsluzLista () {
-            List<Car> carList = dao.zwrocListeSamochodow();
+            List<Car> carList = daoCar.list(Car.class);
             for (Car car : carList) {
                 System.out.println(car);
             }
@@ -92,10 +191,10 @@ public class CarRentalCommanLineParser {
         private void obsluzUsun () {
             System.out.println("Podaj id samochodu:");
             Long podaneId = scanner.nextLong();
-            Optional<Car> szukanySamochod = dao.zwrocSamochod(podaneId);
+            Optional<Car> szukanySamochod = daoCar.znajdzPoId(podaneId,Car.class);
             if (szukanySamochod.isPresent()) {
                 Car car = szukanySamochod.get();
-                dao.usunSamochod(car);
+                daoCar.usun(car);
                 System.out.println("Samochód został usunięty");
             } else {
                 System.out.println("Nie odnaleziono samochodu");
@@ -121,8 +220,8 @@ public class CarRentalCommanLineParser {
 
             TypSkrzyni skrzynia = zaladujSkrzynie();
 
-            Car car = new Car(null, name, marka, dataProdukcji, nadwozie, miejscaSiedzace, pojemnoscSilnika, skrzynia);
-            dao.dodajSamochod(car);
+            Car car = new Car(name, marka, dataProdukcji, nadwozie, miejscaSiedzace, pojemnoscSilnika, skrzynia);
+            daoCar.dodaj(car);
 
         }
 
